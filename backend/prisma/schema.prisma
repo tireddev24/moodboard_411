@@ -1,0 +1,161 @@
+// schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  username      String         @unique
+  email         String         @unique
+  password      String
+  avatarUrl     String?
+  bio           String?
+  posts         Post[]
+  comments      Comment[]
+  likes         Like[]
+  savedPosts    SavedPost[]
+  followers     Follow[]       @relation("followers")
+  following     Follow[]       @relation("following")
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  reports       Report[]
+  refreshTokens RefreshToken[]
+}
+
+model Post {
+  id            String         @id @default(uuid())
+  caption       String
+  quote         String?
+  imageUrl      String?
+  moodCategory  MoodCategory
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  comments      Comment[]
+  likes         Like[]
+  tags          PostTag[]
+  savedBy       SavedPost[]
+  reports       Report[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+}
+
+enum MoodCategory {
+  HAPPY
+  SAD
+  ANGRY
+  ANXIOUS
+  CALM
+  EXCITED
+  NEUTRAL
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId]) // Prevent duplicate likes
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  follower    User     @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  String
+  following   User     @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId String
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  message   String
+  isRead    Boolean          @default(false)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  post      Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String?
+  createdAt DateTime         @default(now())
+}
+
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  SYSTEM
+}
+
+model Tag {
+  id    String    @id @default(uuid())
+  name  String    @unique
+  posts PostTag[]
+}
+
+model PostTag {
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  String
+
+  @@id([postId, tagId])
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId    String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+}
+
+model Report {
+  id           String       @id @default(uuid())
+  reason       String
+  post         Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  postId       String
+  reportedBy   User         @relation(fields: [reportedById], references: [id], onDelete: Cascade)
+  reportedById String
+  status       ReportStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
